@@ -1,0 +1,77 @@
+import java.io.*;
+import java.nio.channels.FileChannel;
+import java.nio.file.*;
+import org.apache.commons.io.FileUtils;
+
+public class FileCopyBenchmark {
+    public static void main(String[] args) throws IOException {
+        measureTimeAndMemory("FileInputStream", () -> copyUsingFileInputStream("sourceFile.txt", "destinationFile1.txt"));
+        measureTimeAndMemory("FileChannel", () -> copyUsingFileChannel("sourceFile.txt", "destinationFile2.txt"));
+        measureTimeAndMemory("Apache Commons IO", () -> copyUsingApacheCommonsIO("sourceFile.txt", "destinationFile3.txt"));
+        measureTimeAndMemory("Files class", () -> copyUsingFilesClass("sourceFile.txt", "destinationFile4.txt"));
+    }
+
+    private static void measureTimeAndMemory(String method, Runnable task) {
+        long startTime = System.currentTimeMillis();
+        long startMemory = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
+
+        task.run();
+
+        long endTime = System.currentTimeMillis();
+        long endMemory = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
+
+        System.out.println(method + " took " + (endTime - startTime) + " milliseconds");
+        System.out.println(method + " used " + (endMemory - startMemory) + " bytes of memory");
+        System.out.println("------------------------");
+    }
+
+    private static void copyUsingFileInputStream(String sourcePath, String destPath) {
+        try (FileInputStream fis = new FileInputStream(sourcePath);
+             FileOutputStream fos = new FileOutputStream(destPath)) {
+
+            byte[] buffer = new byte[1024];
+            int bytesRead;
+
+            while ((bytesRead = fis.read(buffer)) != -1) {
+                fos.write(buffer, 0, bytesRead);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static void copyUsingFileChannel(String sourcePath, String destPath) {
+        try (FileInputStream fis = new FileInputStream(sourcePath);
+             FileOutputStream fos = new FileOutputStream(destPath);
+             FileChannel sourceChannel = fis.getChannel();
+             FileChannel destChannel = fos.getChannel()) {
+
+            destChannel.transferFrom(sourceChannel, 0, sourceChannel.size());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static void copyUsingApacheCommonsIO(String sourcePath, String destPath) {
+        try {
+            File sourceFile = new File(sourcePath);
+            File destFile = new File(destPath);
+
+            FileUtils.copyFile(sourceFile, destFile);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static void copyUsingFilesClass(String sourcePath, String destPath) {
+        try {
+            Path source = Path.of(sourcePath);
+            Path dest = Path.of(destPath);
+
+            Files.copy(source, dest, StandardCopyOption.REPLACE_EXISTING);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+}
+
